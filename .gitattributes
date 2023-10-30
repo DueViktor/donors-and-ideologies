@@ -1,3 +1,4 @@
 * text=auto eol=lf
 data/littlesis-entities.json filter=lfs diff=lfs merge=lfs -text
 data/littlesis-relationships.json filter=lfs diff=lfs merge=lfs -text
+data/littlesis-largest-component.pickle filter=lfs diff=lfs merge=lfs -text
