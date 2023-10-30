@@ -1,2 +1,4 @@
 * text=auto eol=lf
 data filter=lfs diff=lfs merge=lfs -text
+data/littlesis-entities.json filter=lfs diff=lfs merge=lfs -text
+data/littlesis-relationships.json filter=lfs diff=lfs merge=lfs -text
