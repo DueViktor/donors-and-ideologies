@@ -117,9 +117,7 @@ def build_entity_list(CHOSEN_CONGRESS):
     count_ids_after_all_mappings = count_ids(entities)
 
     # Save the entities to a JSON file
-    save_json(
-        data=entities, path=Path(f"data/{CHOSEN_CONGRESS}-entities-with-ids.json")
-    )
+    save_json(data=entities, path=Path(f"data/politicians_{CHOSEN_CONGRESS}.json"))
 
     return (
         count_ids_before_mapping,
