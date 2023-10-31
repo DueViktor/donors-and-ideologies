@@ -15,6 +15,8 @@ Description:
 from pathlib import Path
 
 import networkx as nx
+import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
 from scripts.utils import load_json, save_json
@@ -22,16 +24,16 @@ from scripts.utils import load_json, save_json
 
 def generate_custom_id(G_largest: nx.Graph) -> None:
     """
-    Generate a custom id for each node in G_largest.
+    Generate a custom ID for each node in G_largest.
     """
-    # For different reasons, I need a custom id for each entity in G_largest.
-    # This is a mapping from the Littlesis id to my custom id.
     littlesis_id_to_my_id = {}
     my_id_to_littlesis_id = {}
+
     for i, node in enumerate(G_largest.nodes()):
         littlesis_id_to_my_id[G_largest.nodes[node]["id"]] = i
         my_id_to_littlesis_id[i] = G_largest.nodes[node]["id"]
 
+    # Save the mappings to JSON files
     save_json(
         data=littlesis_id_to_my_id, path=Path("data/id-mapping-littlesis-to-mine.json")
     )
@@ -55,7 +57,9 @@ def generate_network_csv(G_largest: nx.Graph) -> None:
             f.write(f"{src_id},{dst_id}\n")
 
 
-def generate_node_attributes_csv(donation_to_politician: dict) -> None:
+def generate_node_attributes_csv(
+    donation_to_politician: dict, my_id_to_littlesis_id: dict
+) -> None:
     # Generate node_attributes.csv from donation_to_politician
     with open("../data/nvd/node_attributes.csv", "w") as f:
         f.write("donor,")
@@ -74,10 +78,7 @@ def generate_node_attributes_csv(donation_to_politician: dict) -> None:
                     line += "0,"
             f.write(line[:-1] + "\n")
 
-    # log-transform and normalize
-    import numpy as np
-    import pandas as pd
-
+    # Log-transform and normalize
     df = pd.read_csv("../data/nvd/node_attributes.csv", index_col=0)
 
     df = df.apply(lambda x: x + 1)
@@ -89,15 +90,20 @@ def generate_node_attributes_csv(donation_to_politician: dict) -> None:
 if __name__ == "__main__":
     import pickle
 
-    # largest component in Littlesis network
+    # Load the largest component in the Littlesis network
     G_largest = pickle.load(open("../data/littlesis-largest-component.pickle", "rb"))
 
-    # custom id
+    # Generate custom IDs
     generate_custom_id(G_largest)
 
-    # network.csv
+    # Generate network.csv
     generate_network_csv(G_largest)
 
-    # Node attributes
+    # Load donation data
     donation_to_politician = load_json(Path("data/donation-to-politician.json"))
-    generate_node_attributes_csv(donation_to_politician)
+
+    # Generate node attributes
+    generate_node_attributes_csv(
+        donation_to_politician,
+        load_json(Path("data/id-mapping-mine-to-littlesis.json")),
+    )
