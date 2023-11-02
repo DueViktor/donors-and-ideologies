@@ -1,3 +1,9 @@
+"""
+Description: 
+    Collect all donations to politicians from the largest component of the LittleSis graph.
+    
+"""
+
 import pickle
 from collections import defaultdict
 
