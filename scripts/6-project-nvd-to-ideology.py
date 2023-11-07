@@ -6,7 +6,8 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE, Isomap
 from tqdm import tqdm
 from utils import read_json, save_json
 
@@ -32,68 +33,57 @@ for polit_id in tqdm(politician_ids, desc="Building distance matrix"):
 # save the distance matrix
 np.save("data/nvd-distance-matrix.npy", distance_matrix)
 
-# Create the t-SNE embeddings
-X_embedded_2 = TSNE(n_components=2, metric="precomputed", init="random").fit_transform(
-    distance_matrix
-)
 
-X_embedded_1 = TSNE(n_components=1, metric="precomputed", init="random").fit_transform(
-    distance_matrix
-)
+dimensionality_models = {
+    "TSNE-2": TSNE(
+        n_components=2, metric="precomputed", init="random", random_state=42
+    ),
+    "TSNE-1": TSNE(
+        n_components=1, metric="precomputed", init="random", random_state=42
+    ),
+    "PCA-2": PCA(n_components=2, random_state=42),
+    "PCA-1": PCA(n_components=1, random_state=42),
+    # "MDS-2": MDS(n_components=2, metric="precomputed", random_state=42),
+    # "MDS-1": MDS(n_components=1, metric="precomputed", random_state=42),
+    "Isomap-2": Isomap(n_components=2, metric="precomputed"),
+    "Isomap-1": Isomap(n_components=1, metric="precomputed"),
+}
 
-# Scale the values to be between -1 and 1
-X_embedded_2 = (X_embedded_2 - X_embedded_2.min()) / (
-    X_embedded_2.max() - X_embedded_2.min()
-)
+for name, model in dimensionality_models.items():
+    print(f"Running {name}")
+    X_embedded = model.fit_transform(distance_matrix)
+    np.save(f"data/nvd-embeddings-{name}.npy", X_embedded)
 
-X_embedded_2 = (X_embedded_2 * 2) - 1
+    # Scale the values to be between -1 and 1
+    X_embedded = (X_embedded - X_embedded.min()) / (X_embedded.max() - X_embedded.min())
 
-X_embedded_1 = (X_embedded_1 - X_embedded_1.min()) / (
-    X_embedded_1.max() - X_embedded_1.min()
-)
+    X_embedded = (X_embedded * 2) - 1
 
-X_embedded_1 = (X_embedded_1 * 2) - 1
+    # Save the embeddings
+    np.save(f"data/nvd-embeddings-{name}.npy", X_embedded)
 
-# Save the embeddings
-np.save("data/nvd-embeddings-2.npy", X_embedded_2)
-np.save("data/nvd-embeddings-1.npy", X_embedded_1)
+    # save embeddings to politician_117
+    # Yes this is a stupid way to do this, but I'm tired and it works ;)
+    politician_117 = read_json("data/politicians_117.json")
+    nvds: List[str] = [f_.split(".")[0] for f_ in os.listdir("data/nvd")]
+    updated_politician_117 = []
+    for idx, politician_id in enumerate(politician_ids):
+        # constant confusion about ids...
+        assert str(politician_id) in nvds, f"{politician_id} not in nvds"
 
-# Add the scores to the politician_117.json file
-assert len(politician_ids) == len(X_embedded_2) == len(X_embedded_1)
+        for info_idx, info in enumerate(politician_117):
+            try:
+                littlesis_match: bool = int(info["ids"]["littlesis"]) == int(
+                    politician_id
+                )
+            except KeyError:
+                littlesis_match = False
 
+            if littlesis_match:
+                info[f"{name}"] = X_embedded[idx].tolist()
 
-politician_117 = read_json("data/politicians_117.json")
-nvds: List[str] = [f_.split(".")[0] for f_ in os.listdir("data/nvd")]
-updated_politician_117 = []
-for idx, politician_id in enumerate(politician_ids):
-    # constant confusion about ids...
-    assert str(politician_id) in nvds, f"{politician_id} not in nvds"
+                politician_117[info_idx] = info
 
-    for info_idx, info in enumerate(politician_117):
-        try:
-            littlesis_match: bool = int(info["ids"]["littlesis"]) == int(politician_id)
-        except KeyError:
-            littlesis_match = False
+                break
 
-        if littlesis_match:
-            print("found", politician_id)
-            info["embedding_2"] = X_embedded_2[idx].tolist()
-            info["embedding_1"] = X_embedded_1[idx].tolist()
-
-            politician_117[info_idx] = info
-
-            break
-
-save_json(path="data/politicians_117.json", data=politician_117)
-
-# politicians and their embeddings
-df = pd.DataFrame(
-    {
-        "politician_id": politician_ids,
-        "embedding_2_0": X_embedded_2[:, 0],
-        "embedding_2_1": X_embedded_2[:, 1],
-        "embedding_1": X_embedded_1[:, 0],
-    }
-)
-
-df.to_csv("data/nvd-politician-and-embeddings.csv", index=False)
+    save_json(path="data/politicians_117.json", data=politician_117)
