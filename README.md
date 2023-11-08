@@ -1,3 +1,5 @@
+![](DALL·E%20Banner.png)
+
 # Donors And Ideologies
 
 The code for my elective project, supervised by [Michele Coscia](https://www.michelecoscia.com/).
